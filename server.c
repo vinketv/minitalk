@@ -1,47 +1,43 @@
+// server.c
 #include "minitalk.h"
 
-void	ft_handler(int signal, siginfo_t *info, void *s)
+void ft_handler(int signal, siginfo_t *info, void *context)
 {
-	static int	bit;
-	static int	i;
+    static int bit = 0;
+    static char char_buffer = 0;
 
-	(void)info;
-	(void)s;
-	if (signal == SIGUSR1)
-		i |= (0x01 << bit);
-	bit++;
-	if (bit == 8)
-	{
-		printf("%c", i);
-		bit = 0;
-		i = 0;
-		kill(info->si_pid, SIGUSR2);
-	}
+    (void)context;
+    if (signal == SIGUSR1)
+        char_buffer |= (0x01 << bit);
+    bit++;
+    if (bit == 8)
+    {
+        write(1, &char_buffer, 1);  // Utilisation de write au lieu de printf pour plus de fiabilité
+        bit = 0;
+        char_buffer = 0;
+        kill(info->si_pid, SIGUSR2);  // Confirmation au client
+    }
 }
 
-int	main(int argc, char **argv)
+int	main(void)
 {
 	int					pid;
 	struct sigaction	sig;
 
-	(void)argv;
-	if (argc != 1)
-	{
-		ft_printf("\033[91mError: wrong format.\033[0m\n");
-		ft_printf("\033[33mTry: ./server\033[0m\n");
-		return (0);
-	}
 	pid = getpid();
-	ft_printf("\033[94mPID\033[0m \033[96m->\033[0m %d\n", pid);
-	ft_printf("\033[90mWaiting for a message...\033[0m\n");
+	printf("PID : %d\n", pid);
+	printf("Waiting for a message...\n");
+
 	sig.sa_sigaction = ft_handler;
 	sigemptyset(&sig.sa_mask);
-	sig.sa_flags = 0;
-	while (argc == 1)
+	sig.sa_flags = SA_SIGINFO;
+
+	sigaction(SIGUSR1, &sig, NULL);
+	sigaction(SIGUSR2, &sig, NULL);
+
+	while (1)
 	{
-		sigaction(SIGUSR1, &sig, NULL);
-		sigaction(SIGUSR2, &sig, NULL);
-		pause();
+		pause();  // Attend un signal
 	}
 	return (0);
 }
